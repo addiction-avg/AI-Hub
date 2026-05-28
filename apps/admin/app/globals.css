@@ -509,6 +509,38 @@ tr:last-child td {
   grid-template-columns: minmax(0, 1fr) 120px auto;
 }
 
+.model-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.topup-grid {
+  grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.health-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.health-item {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .secret-box {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px;
@@ -598,7 +630,9 @@ tr:last-child td {
   }
 
   .form-grid,
-  .key-create-grid {
+  .key-create-grid,
+  .model-form-grid,
+  .topup-grid {
     grid-template-columns: 1fr;
   }
 

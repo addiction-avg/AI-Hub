@@ -17,6 +17,8 @@ export type ModelRecord = {
   publicName: string;
   providerModel: string;
   status: "active" | "disabled";
+  inputTokenPricePerMillion: number;
+  outputTokenPricePerMillion: number;
   createdAt: Date;
 };
 
@@ -39,7 +41,9 @@ function defaultModels() {
     id: `model_${sha256(publicName).slice(0, 10)}`,
     publicName,
     providerModel,
-    status: "active"
+    status: "active",
+    inputTokenPricePerMillion: 0,
+    outputTokenPricePerMillion: 0
   }));
 }
 
@@ -117,6 +121,20 @@ export async function listApiKeys() {
   });
 }
 
+export async function getApiKeyById(id: string) {
+  return prisma.apiKey.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      keyPreview: true,
+      status: true,
+      balance: true,
+      createdAt: true
+    }
+  });
+}
+
 export async function createApiKey(input: { name: string; balance: number }) {
   const rawKey = createRelayApiKey();
   const keyHash = sha256(rawKey);
@@ -171,6 +189,28 @@ export async function updateApiKey(id: string, input: { name?: string; status?: 
   });
 }
 
+export async function recordBalanceAdjustment(input: {
+  apiKeyId: string;
+  amount: number;
+  reason: string;
+  sourceType: string;
+  sourceId?: string;
+  adminId?: string;
+  note?: string;
+}) {
+  return prisma.balanceLedger.create({
+    data: {
+      apiKeyId: input.apiKeyId,
+      amount: input.amount,
+      reason: input.reason,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      adminId: input.adminId,
+      note: input.note
+    }
+  });
+}
+
 export async function getBalance(clientId: string) {
   const record = await prisma.apiKey.findUnique({
     where: { id: clientId },
@@ -178,6 +218,14 @@ export async function getBalance(clientId: string) {
   });
 
   return record?.balance ?? 0;
+}
+
+export async function getTotalBalance() {
+  const result = await prisma.apiKey.aggregate({
+    _sum: { balance: true }
+  });
+
+  return result._sum.balance ?? 0;
 }
 
 export async function spendCredit(clientId: string, amount = 1) {
@@ -193,6 +241,21 @@ export async function spendCredit(clientId: string, amount = 1) {
   });
 
   return updated.count === 1;
+}
+
+export async function debitCredits(clientId: string, amount: number) {
+  if (amount <= 0) {
+    return true;
+  }
+
+  await prisma.apiKey.update({
+    where: { id: clientId },
+    data: {
+      balance: { decrement: Math.trunc(amount) }
+    }
+  });
+
+  return true;
 }
 
 export async function listModels() {
@@ -217,16 +280,22 @@ export async function resolveProviderModel(publicModel: string) {
       publicName: publicModel,
       status: "active"
     },
-    select: { providerModel: true }
+    select: {
+      providerModel: true,
+      inputTokenPricePerMillion: true,
+      outputTokenPricePerMillion: true
+    }
   });
 
-  return model?.providerModel ?? null;
+  return model ?? null;
 }
 
 export async function upsertModel(input: {
   publicName: string;
   providerModel: string;
   status: "active" | "disabled";
+  inputTokenPricePerMillion?: number;
+  outputTokenPricePerMillion?: number;
 }) {
   const publicName = input.publicName.trim();
   const providerModel = input.providerModel.trim();
@@ -238,15 +307,23 @@ export async function upsertModel(input: {
     where: { publicName },
     update: {
       providerModel,
-      status: input.status
+      status: input.status,
+      inputTokenPricePerMillion: normalizePrice(input.inputTokenPricePerMillion),
+      outputTokenPricePerMillion: normalizePrice(input.outputTokenPricePerMillion)
     },
     create: {
       id: `model_${sha256(publicName).slice(0, 10)}`,
       publicName,
       providerModel,
-      status: input.status
+      status: input.status,
+      inputTokenPricePerMillion: normalizePrice(input.inputTokenPricePerMillion),
+      outputTokenPricePerMillion: normalizePrice(input.outputTokenPricePerMillion)
     }
   });
+}
+
+function normalizePrice(value?: number) {
+  return value !== undefined && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
 }
 
 export async function deleteModel(publicName: string) {

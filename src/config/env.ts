@@ -7,6 +7,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   APP_SECRET: z.string().min(16),
+  ADMIN_API_KEYS: z.string().default("admin-local-dev"),
   RELAY_API_KEYS: z.string().default("sk-local-dev"),
   OPENAI_COMPAT_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
   OPENAI_COMPAT_API_KEY: z.string().default(""),
@@ -22,6 +23,7 @@ export const env = {
   ...parsed,
   providerApiKeyConfigured: Boolean(parsed.OPENAI_COMPAT_API_KEY)
     && parsed.OPENAI_COMPAT_API_KEY !== "replace-with-provider-key",
+  adminApiKeys: parsed.ADMIN_API_KEYS.split(",").map((key) => key.trim()).filter(Boolean),
   relayApiKeys: parsed.RELAY_API_KEYS.split(",").map((key) => key.trim()).filter(Boolean),
   modelAliases: Object.fromEntries(
     parsed.MODEL_ALIASES.split(",")

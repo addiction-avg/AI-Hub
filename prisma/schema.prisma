@@ -20,12 +20,14 @@ model ApiKey {
 }
 
 model Model {
-  id            String   @id @default(cuid())
-  publicName    String   @unique
-  providerModel String
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  publicName                 String   @unique
+  providerModel              String
+  status                     String   @default("active")
+  inputTokenPricePerMillion  Int      @default(0)
+  outputTokenPricePerMillion Int      @default(0)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   @@index([status])
 }
@@ -44,14 +46,72 @@ model UsageLog {
   id            String   @id @default(cuid())
   clientId      String
   model         String
+  providerId    String?
   providerModel String?
   statusCode    Int
   latencyMs     Int
   success       Boolean
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  totalTokens   Int      @default(0)
+  costCredits   Int      @default(0)
   error         String?
   createdAt     DateTime @default(now())
 
   @@index([clientId])
   @@index([createdAt])
   @@index([success])
+  @@index([providerId])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  adminId       String
+  adminName     String
+  adminRole     String
+  action        String
+  objectType    String
+  objectId      String
+  changeSummary Json?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([adminId])
+  @@index([objectType, objectId])
+  @@index([createdAt])
+}
+
+model TopUpOrder {
+  id               String    @id @default(cuid())
+  apiKeyId         String
+  amountCredits    Int
+  status           String    @default("pending")
+  externalRef      String?
+  note             String?
+  createdByAdminId String
+  paidByAdminId    String?
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([apiKeyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BalanceLedger {
+  id         String   @id @default(cuid())
+  apiKeyId   String
+  amount     Int
+  reason     String
+  sourceType String
+  sourceId   String?
+  adminId    String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@index([sourceType, sourceId])
+  @@index([createdAt])
 }

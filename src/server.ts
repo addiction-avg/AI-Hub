@@ -1,22 +1,10 @@
-import cors from "@fastify/cors";
-import Fastify from "fastify";
+import { buildApp } from "./app.js";
 import { env } from "./config/env.js";
-import { registerRoutes } from "./routes.js";
 import { disconnectPrisma } from "./services/prisma.js";
 import { disconnectRedis, ensureRedisReady } from "./services/redis.js";
 import { ensureDatabaseReady } from "./services/state.js";
 
-const app = Fastify({
-  logger: {
-    level: "info"
-  }
-});
-
-await app.register(cors, {
-  origin: true
-});
-
-await registerRoutes(app);
+const app = await buildApp();
 
 try {
   await ensureDatabaseReady();

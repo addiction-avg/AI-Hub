@@ -1,1 +1,1 @@
-export { getBalance, spendCredit } from "./state.js";
+export { debitCredits, getBalance, getTotalBalance, recordBalanceAdjustment, spendCredit } from "./state.js";

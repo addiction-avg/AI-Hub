@@ -6,6 +6,10 @@ export type Summary = {
   availableModels: number;
   providerConfigured: boolean;
   recentFailures: number;
+  recentFailureRate: number;
+  todayRequests: number;
+  todayCostCredits: number;
+  pendingTopUps: number;
 };
 
 export type ModelRow = {
@@ -13,6 +17,8 @@ export type ModelRow = {
   publicName: string;
   providerModel: string;
   status: "active" | "disabled";
+  inputTokenPricePerMillion: number;
+  outputTokenPricePerMillion: number;
   createdAt: string;
 };
 
@@ -42,7 +48,61 @@ export type UsageLogRow = {
   statusCode: number;
   latencyMs: number;
   success: boolean;
+  providerId?: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costCredits: number;
   error?: string;
+};
+
+export type AdminMe = {
+  adminId: string;
+  name: string;
+  role: "owner" | "admin" | "viewer";
+};
+
+export type TopUpOrderRow = {
+  id: string;
+  apiKeyId: string;
+  amountCredits: number;
+  status: "pending" | "paid" | "canceled";
+  externalRef?: string | null;
+  note?: string | null;
+  createdByAdminId: string;
+  paidByAdminId?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuditLogRow = {
+  id: string;
+  adminId: string;
+  adminName: string;
+  adminRole: string;
+  action: string;
+  objectType: string;
+  objectId: string;
+  changeSummary?: unknown;
+  ip?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+};
+
+export type AdminHealth = {
+  ok: boolean;
+  checks: {
+    postgres: "ok" | "error";
+    redis: "ok" | "error";
+    providerConfigured: boolean;
+  };
+  metrics: {
+    recentRequests: number;
+    recentFailures: number;
+    recentFailureRate: number;
+    avgLatencyMs: number;
+  };
 };
 
 export type AdminData = {
@@ -51,6 +111,10 @@ export type AdminData = {
   providers: ProviderRow[];
   apiKeys: ApiKeyRow[];
   logs: UsageLogRow[];
+  topUps: TopUpOrderRow[];
+  auditLogs: AuditLogRow[];
+  health: AdminHealth;
+  admin: AdminMe;
 };
 
 const defaultBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
@@ -96,12 +160,16 @@ async function sendJson<T>(
 }
 
 export async function loadAdminData(apiKey: string, baseUrl = defaultBaseUrl): Promise<AdminData> {
-  const [summary, models, providers, apiKeys, logs] = await Promise.all([
+  const [summary, models, providers, apiKeys, logs, topUps, auditLogs, health, admin] = await Promise.all([
     getJson<Summary>("/admin/summary", apiKey, baseUrl),
     getJson<{ data: ModelRow[] }>("/admin/models", apiKey, baseUrl),
     getJson<{ data: ProviderRow[] }>("/admin/providers", apiKey, baseUrl),
     getJson<{ data: ApiKeyRow[] }>("/admin/api-keys", apiKey, baseUrl),
-    getJson<{ data: UsageLogRow[] }>("/admin/usage-logs", apiKey, baseUrl)
+    getJson<{ data: UsageLogRow[] }>("/admin/usage-logs", apiKey, baseUrl),
+    getJson<{ data: TopUpOrderRow[] }>("/admin/top-up-orders", apiKey, baseUrl),
+    getJson<{ data: AuditLogRow[] }>("/admin/audit-logs", apiKey, baseUrl),
+    getJson<AdminHealth>("/admin/health", apiKey, baseUrl),
+    getJson<AdminMe>("/admin/me", apiKey, baseUrl)
   ]);
 
   return {
@@ -109,7 +177,11 @@ export async function loadAdminData(apiKey: string, baseUrl = defaultBaseUrl): P
     models: models.data,
     providers: providers.data,
     apiKeys: apiKeys.data,
-    logs: logs.data
+    logs: logs.data,
+    topUps: topUps.data,
+    auditLogs: auditLogs.data,
+    health,
+    admin
   };
 }
 
@@ -121,7 +193,13 @@ export function updateApiKey(apiKey: string, id: string, input: Partial<Pick<Api
   return sendJson<ApiKeyRow>(`/admin/api-keys/${encodeURIComponent(id)}`, apiKey, "PATCH", input);
 }
 
-export function saveModel(apiKey: string, input: Pick<ModelRow, "publicName" | "providerModel" | "status">) {
+export function saveModel(
+  apiKey: string,
+  input: Pick<
+    ModelRow,
+    "publicName" | "providerModel" | "status" | "inputTokenPricePerMillion" | "outputTokenPricePerMillion"
+  >
+) {
   return sendJson<ModelRow>("/admin/models", apiKey, "POST", input);
 }
 
@@ -135,4 +213,19 @@ export function updateProvider(
   input: Partial<Pick<ProviderRow, "name" | "baseUrl">> & { apiKey?: string; status?: "active" | "disabled" }
 ) {
   return sendJson<ProviderRow>(`/admin/providers/${encodeURIComponent(id)}`, apiKey, "PATCH", input);
+}
+
+export function createTopUpOrder(
+  apiKey: string,
+  input: { apiKeyId: string; amountCredits: number; externalRef?: string; note?: string }
+) {
+  return sendJson<TopUpOrderRow>("/admin/top-up-orders", apiKey, "POST", input);
+}
+
+export function updateTopUpOrder(
+  apiKey: string,
+  id: string,
+  input: { status: "pending" | "paid" | "canceled"; note?: string }
+) {
+  return sendJson<TopUpOrderRow>(`/admin/top-up-orders/${encodeURIComponent(id)}`, apiKey, "PATCH", input);
 }
