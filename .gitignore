@@ -1,0 +1,7 @@
+node_modules/
+dist/
+apps/admin/.next/
+.env
+data/*.jsonl
+data/*.json
+*.log

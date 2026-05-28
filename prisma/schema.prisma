@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ApiKey {
+  id         String   @id
+  name       String
+  keyHash    String   @unique
+  keyPreview String
+  status     String   @default("active")
+  balance    Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Model {
+  id            String   @id @default(cuid())
+  publicName    String   @unique
+  providerModel String
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Provider {
+  id              String   @id
+  name            String
+  baseUrl         String
+  encryptedApiKey String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model UsageLog {
+  id            String   @id @default(cuid())
+  clientId      String
+  model         String
+  providerModel String?
+  statusCode    Int
+  latencyMs     Int
+  success       Boolean
+  error         String?
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([success])
+}
